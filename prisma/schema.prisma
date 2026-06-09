@@ -1,0 +1,669 @@
+// ============================================================
+// schema.prisma — Sistem Manajemen Bisnis Terpadu
+// v2 — taxRate, RoomPricing, RoomFacility, Restaurant own stock
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UnitType {
+  RETAIL
+  HOMESTAY
+  RESTAURANT
+  LODGING
+}
+
+enum Role {
+  OWNER
+  MANAGER
+  STAFF
+  CASHIER
+}
+
+enum StockMovementType {
+  IN // pembelian dari supplier / terima B2B
+  OUT // penjualan / pemakaian resep
+  TRANSFER // pindah antar unit (future)
+  ADJUSTMENT // koreksi manual
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  ORDERED
+  PARTIAL
+  RECEIVED
+  CANCELLED
+}
+
+enum TransactionType {
+  RETAIL // penjualan eceran ke konsumen akhir
+  B2B // penjualan ke unit bisnis lain (Toko → Restoran)
+}
+
+enum TransactionStatus {
+  PENDING
+  PAID
+  VOIDED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIAL
+  PAID
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  QRIS
+  CARD
+  OTHER
+}
+
+enum RoomStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+}
+
+enum PaymentType {
+  DP
+  FULL
+  REFUND
+}
+
+enum TableOrderStatus {
+  OPEN
+  BILLED
+  PAID
+  CANCELLED
+}
+
+enum PricingDayType {
+  WEEKDAY
+  WEEKEND // Sabtu–Minggu
+  HOLIDAY // tanggal merah / peak season
+}
+
+// ============================================================
+// AUTH & USER
+// ============================================================
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(STAFF)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // null = OWNER (akses semua unit)
+  primaryUnitId String?
+  primaryUnit   BusinessUnit? @relation(fields: [primaryUnitId], references: [id])
+
+  employee Employee?
+
+  @@map("users")
+}
+
+// ============================================================
+// BUSINESS UNIT
+// ============================================================
+
+model BusinessUnit {
+  id        String   @id @default(cuid())
+  name      String
+  type      UnitType
+  location  String?
+  phone     String?
+  taxRate   Decimal  @default(0) @db.Decimal(5, 2) // % pajak default unit ini
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users          User[]
+  products       Product[]
+  suppliers      Supplier[]
+  purchaseOrders PurchaseOrder[]
+  transactions   Transaction[]
+  b2bSales       B2BInvoice[]    @relation("SellerUnit")
+  b2bPurchases   B2BInvoice[]    @relation("BuyerUnit")
+  rooms          Room[]
+  bookings       Booking[]
+  menuItems      MenuItem[]
+  tableOrders    TableOrder[]
+  employees      Employee[]      @relation("PrimaryUnit")
+  shifts         Shift[]
+
+  @@map("business_units")
+}
+
+// ============================================================
+// PRODUK & INVENTORI
+// ============================================================
+
+model Category {
+  id       String    @id @default(cuid())
+  name     String
+  unitType UnitType? // null = universal
+
+  products  Product[]
+  menuItems MenuItem[]
+
+  @@map("categories")
+}
+
+model Product {
+  id        String   @id @default(cuid())
+  name      String
+  sku       String?
+  unit      String // pcs, kg, liter, box, dll
+  costPrice Decimal  @db.Decimal(12, 2)
+  sellPrice Decimal  @db.Decimal(12, 2)
+  stock     Decimal  @default(0) @db.Decimal(12, 3)
+  minStock  Decimal  @default(0) @db.Decimal(12, 3)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  unitId   String
+  unit_rel BusinessUnit @relation(fields: [unitId], references: [id])
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  stockMovements     StockMovement[]
+  purchaseOrderItems PurchaseOrderItem[]
+  transactionItems   TransactionItem[]
+  b2bInvoiceItems    B2BInvoiceItem[]
+  ingredients        MenuItemIngredient[]
+
+  @@unique([sku, unitId])
+  @@map("products")
+}
+
+model StockMovement {
+  id        String            @id @default(cuid())
+  type      StockMovementType
+  qty       Decimal           @db.Decimal(12, 3)
+  qtyBefore Decimal           @db.Decimal(12, 3)
+  qtyAfter  Decimal           @db.Decimal(12, 3)
+  note      String?
+  refType   String? // "PurchaseOrder" | "Transaction" | "B2BInvoice" | "TableOrder" | "Manual"
+  refId     String?
+  createdAt DateTime          @default(now())
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@index([productId])
+  @@index([refType, refId])
+  @@map("stock_movements")
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String
+  contact   String?
+  phone     String?
+  email     String?
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  unitId String
+  unit   BusinessUnit @relation(fields: [unitId], references: [id])
+
+  purchaseOrders PurchaseOrder[]
+
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id          String              @id @default(cuid())
+  orderNumber String              @unique
+  status      PurchaseOrderStatus @default(DRAFT)
+  total       Decimal             @db.Decimal(14, 2)
+  note        String?
+  orderedAt   DateTime?
+  receivedAt  DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+
+  unitId String
+  unit   BusinessUnit @relation(fields: [unitId], references: [id])
+
+  items PurchaseOrderItem[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id       String  @id @default(cuid())
+  qty      Decimal @db.Decimal(12, 3)
+  qtyRecv  Decimal @default(0) @db.Decimal(12, 3)
+  price    Decimal @db.Decimal(12, 2)
+  subtotal Decimal @db.Decimal(14, 2)
+  note     String?
+
+  orderId String
+  order   PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@map("purchase_order_items")
+}
+
+// ============================================================
+// TRANSAKSI PENJUALAN
+// ============================================================
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  createdAt DateTime @default(now())
+
+  transactions Transaction[]
+
+  @@map("customers")
+}
+
+model Transaction {
+  id            String            @id @default(cuid())
+  invoiceNumber String            @unique
+  type          TransactionType   @default(RETAIL)
+  status        TransactionStatus @default(PENDING)
+  paymentMethod PaymentMethod?
+  subtotal      Decimal           @db.Decimal(14, 2)
+  discount      Decimal           @default(0) @db.Decimal(14, 2)
+  taxRate       Decimal           @default(0) @db.Decimal(5, 2) // % (e.g. 11.00)
+  tax           Decimal           @default(0) @db.Decimal(14, 2) // nominal hasil hitung
+  total         Decimal           @db.Decimal(14, 2)
+  paidAmount    Decimal           @default(0) @db.Decimal(14, 2)
+  change        Decimal           @default(0) @db.Decimal(14, 2)
+  note          String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  unitId String
+  unit   BusinessUnit @relation(fields: [unitId], references: [id])
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+
+  items TransactionItem[]
+
+  @@index([unitId, createdAt])
+  @@map("transactions")
+}
+
+model TransactionItem {
+  id       String  @id @default(cuid())
+  qty      Decimal @db.Decimal(12, 3)
+  price    Decimal @db.Decimal(12, 2)
+  discount Decimal @default(0) @db.Decimal(12, 2)
+  subtotal Decimal @db.Decimal(14, 2)
+
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@map("transaction_items")
+}
+
+// Invoice antar unit bisnis (Toko → Restoran)
+// Ketika PAID: stok Toko -qty, stok Restoran +qty via StockMovement
+model B2BInvoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
+  status        InvoiceStatus @default(DRAFT)
+  subtotal      Decimal       @db.Decimal(14, 2)
+  discount      Decimal       @default(0) @db.Decimal(14, 2)
+  taxRate       Decimal       @default(0) @db.Decimal(5, 2)
+  tax           Decimal       @default(0) @db.Decimal(14, 2)
+  total         Decimal       @db.Decimal(14, 2)
+  paidAmount    Decimal       @default(0) @db.Decimal(14, 2)
+  dueDate       DateTime?
+  paidAt        DateTime?
+  note          String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  sellerUnitId String
+  sellerUnit   BusinessUnit @relation("SellerUnit", fields: [sellerUnitId], references: [id])
+
+  buyerUnitId String
+  buyerUnit   BusinessUnit @relation("BuyerUnit", fields: [buyerUnitId], references: [id])
+
+  items B2BInvoiceItem[]
+
+  @@map("b2b_invoices")
+}
+
+model B2BInvoiceItem {
+  id       String  @id @default(cuid())
+  qty      Decimal @db.Decimal(12, 3)
+  price    Decimal @db.Decimal(12, 2)
+  subtotal Decimal @db.Decimal(14, 2)
+
+  // Nama produk di-snapshot karena produk seller & buyer berbeda entitas
+  productName String
+  productUnit String // satuan (kg, pcs, dll)
+
+  // Produk di sisi seller (untuk kurangi stok Toko)
+  sellerProductId String
+  sellerProduct   Product @relation(fields: [sellerProductId], references: [id])
+
+  invoiceId String
+  invoice   B2BInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("b2b_invoice_items")
+}
+
+// ============================================================
+// PENGINAPAN — HOMESTAY & LODGING
+// ============================================================
+
+model RoomType {
+  id          String  @id @default(cuid())
+  name        String // Deluxe, Standard, Suite, Villa, dll
+  description String?
+  capacity    Int     @default(2)
+
+  rooms Room[]
+
+  @@map("room_types")
+}
+
+// Fasilitas kamar (Homestay butuh ini lebih detail)
+model Facility {
+  id   String  @id @default(cuid())
+  name String // AC, WiFi, TV, Kolam Renang, Dapur, Parkir, dll
+  icon String? // nama icon (untuk UI)
+
+  rooms RoomFacility[]
+
+  @@map("facilities")
+}
+
+model RoomFacility {
+  roomId     String
+  room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id])
+
+  @@id([roomId, facilityId])
+  @@map("room_facilities")
+}
+
+model Room {
+  id          String     @id @default(cuid())
+  name        String // "101", "Kamar Melati", "Villa A"
+  floor       Int?
+  status      RoomStatus @default(AVAILABLE)
+  description String?
+  imageUrl    String?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  unitId String
+  unit   BusinessUnit @relation(fields: [unitId], references: [id])
+
+  roomTypeId String?
+  roomType   RoomType? @relation(fields: [roomTypeId], references: [id])
+
+  facilities RoomFacility[]
+  bookings   Booking[]
+  pricing    RoomPricing[]
+
+  @@map("rooms")
+}
+
+// Harga dinamis — dipakai terutama oleh Penginapan (LODGING)
+// Homestay bisa pakai juga jika ada weekend pricing
+model RoomPricing {
+  id        String         @id @default(cuid())
+  dayType   PricingDayType
+  price     Decimal        @db.Decimal(12, 2)
+  // Untuk peak season: tanggal spesifik override dayType
+  startDate DateTime?      @db.Date
+  endDate   DateTime?      @db.Date
+  label     String? // "Lebaran 2025", "High Season", dll
+  isActive  Boolean        @default(true)
+
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@map("room_pricing")
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  bookingCode   String        @unique
+  guestName     String
+  guestPhone    String?
+  guestEmail    String?
+  guestIdNum    String? // KTP/Paspor
+  checkIn       DateTime      @db.Date
+  checkOut      DateTime      @db.Date
+  totalNights   Int
+  pricePerNight Decimal       @db.Decimal(12, 2) // snapshot harga saat booking
+  totalPrice    Decimal       @db.Decimal(14, 2)
+  dpAmount      Decimal       @default(0) @db.Decimal(14, 2)
+  paidAmount    Decimal       @default(0) @db.Decimal(14, 2)
+  status        BookingStatus @default(PENDING)
+  source        String? // "walk-in" | "telepon" | "online" | "OTA"
+  extraBed      Int           @default(0)
+  extraBedPrice Decimal       @default(0) @db.Decimal(12, 2)
+  note          String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id])
+
+  unitId String
+  unit   BusinessUnit @relation(fields: [unitId], references: [id])
+
+  payments BookingPayment[]
+
+  @@index([unitId, checkIn, checkOut])
+  @@index([status])
+  @@map("bookings")
+}
+
+model BookingPayment {
+  id        String        @id @default(cuid())
+  amount    Decimal       @db.Decimal(14, 2)
+  method    PaymentMethod
+  type      PaymentType
+  note      String?
+  paidAt    DateTime      @default(now())
+  createdAt DateTime      @default(now())
+
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("booking_payments")
+}
+
+// ============================================================
+// RESTORAN
+// ============================================================
+
+model MenuCategory {
+  id   String @id @default(cuid())
+  name String // Makanan, Minuman, Snack, Paket, dll
+
+  menuItems MenuItem[]
+
+  @@map("menu_categories")
+}
+
+model MenuItem {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(12, 2)
+  taxRate     Decimal  @default(0) @db.Decimal(5, 2) // bisa override dari unit
+  isAvailable Boolean  @default(true)
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  unitId String
+  unit   BusinessUnit @relation(fields: [unitId], references: [id])
+
+  menuCategoryId String?
+  menuCategory   MenuCategory? @relation(fields: [menuCategoryId], references: [id])
+
+  ingredients     MenuItemIngredient[]
+  tableOrderItems TableOrderItem[]
+  Category        Category?            @relation(fields: [categoryId], references: [id])
+  categoryId      String?
+
+  @@map("menu_items")
+}
+
+// Resep: MenuItem pakai Product dari stok Restoran sendiri
+// Ketika TableOrder PAID → StockMovement OUT per ingredient
+model MenuItemIngredient {
+  id      String  @id @default(cuid())
+  qtyUsed Decimal @db.Decimal(12, 3)
+
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  // Product harus milik unit Restoran yang sama
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@unique([menuItemId, productId])
+  @@map("menu_item_ingredients")
+}
+
+model TableOrder {
+  id            String           @id @default(cuid())
+  orderNumber   String           @unique
+  tableNumber   String
+  guestCount    Int?
+  status        TableOrderStatus @default(OPEN)
+  subtotal      Decimal          @default(0) @db.Decimal(14, 2)
+  discount      Decimal          @default(0) @db.Decimal(14, 2)
+  taxRate       Decimal          @default(0) @db.Decimal(5, 2)
+  tax           Decimal          @default(0) @db.Decimal(14, 2)
+  total         Decimal          @default(0) @db.Decimal(14, 2)
+  paymentMethod PaymentMethod?
+  note          String?
+  openedAt      DateTime         @default(now())
+  billedAt      DateTime?
+  paidAt        DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  unitId String
+  unit   BusinessUnit @relation(fields: [unitId], references: [id])
+
+  items TableOrderItem[]
+
+  @@index([unitId, status])
+  @@map("table_orders")
+}
+
+model TableOrderItem {
+  id       String  @id @default(cuid())
+  qty      Int
+  price    Decimal @db.Decimal(12, 2)
+  subtotal Decimal @db.Decimal(14, 2)
+  note     String? // "tidak pedas", "extra sambal"
+  status   String  @default("PENDING") // PENDING | COOKING | SERVED | CANCELLED
+
+  orderId String
+  order   TableOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@map("table_order_items")
+}
+
+// ============================================================
+// SDM
+// ============================================================
+
+model Employee {
+  id        String    @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  idNumber  String?
+  position  String?
+  salary    Decimal?  @db.Decimal(14, 2)
+  joinDate  DateTime? @db.Date
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  primaryUnitId String
+  primaryUnit   BusinessUnit @relation("PrimaryUnit", fields: [primaryUnitId], references: [id])
+
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id])
+
+  shifts Shift[]
+
+  @@map("employees")
+}
+
+model Shift {
+  id        String    @id @default(cuid())
+  date      DateTime  @db.Date
+  clockIn   DateTime?
+  clockOut  DateTime?
+  note      String?
+  createdAt DateTime  @default(now())
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  unitId String
+  unit   BusinessUnit @relation(fields: [unitId], references: [id])
+
+  @@index([employeeId, date])
+  @@index([unitId, date])
+  @@map("shifts")
+}

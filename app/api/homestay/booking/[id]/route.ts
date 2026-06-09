@@ -1,0 +1,46 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { updateBookingStatus, serializeBooking } from '@/lib/accommodation'
+import { prisma } from '@/lib/prisma'
+
+export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+  const booking = await prisma.booking.findUnique({
+    where: { id: params.id },
+    include: {
+      room: {
+        include: {
+          roomType: true,
+          facilities: { include: { facility: true } },
+          pricing: true,
+        },
+      },
+      payments: { orderBy: { paidAt: 'asc' } },
+    },
+  })
+  if (!booking) return NextResponse.json({ error: 'Booking tidak ditemukan' }, { status: 404 })
+
+  const serialized = {
+    ...serializeBooking(booking),
+    room: {
+      ...booking.room,
+      pricing: booking.room?.pricing.map((p) => ({ ...p, price: Number(p.price) })) ?? [],
+    },
+  }
+
+  return NextResponse.json(serialized)
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  try {
+    const { status } = await req.json()
+    if (!status) return NextResponse.json({ error: 'Status wajib diisi' }, { status: 400 })
+    const updated = await updateBookingStatus(params.id, status)
+    return NextResponse.json(serializeBooking(updated))
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 400 })
+  }
+}
