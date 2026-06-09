@@ -21,10 +21,10 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Selamat datang, {session.user.name}</h1>
-      <p className="text-gray-500 mb-8">Ringkasan semua unit bisnis</p>
+      <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-1">Selamat datang, {session.user.name}</h1>
+      <p className="text-sm text-gray-500 mb-6">Ringkasan semua unit bisnis</p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {[
           { label: 'Toko Retail',  color: 'bg-blue-500',   href: '/toko' },
           { label: 'Homestay',     color: 'bg-green-500',  href: '/homestay' },

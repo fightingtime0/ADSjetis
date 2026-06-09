@@ -19,7 +19,6 @@ export function BukaMejaButton({ tableNumber }: { tableNumber: string }) {
       const data = await res.json()
 
       if (res.status === 409) {
-        // Meja sudah ada order — langsung navigasi
         router.push(`/restoran/meja/${data.orderId}`)
         return
       }
@@ -39,16 +38,14 @@ export function BukaMejaButton({ tableNumber }: { tableNumber: string }) {
     <button
       onClick={handleClick}
       disabled={loading}
-      className="rounded-xl border-2 border-dashed border-gray-200 p-3.5 text-center hover:border-orange-300 hover:bg-orange-50 transition-all group disabled:opacity-50"
+      className="rounded-xl border-2 border-dashed border-gray-200 p-3 text-center hover:border-orange-300 hover:bg-orange-50 active:bg-orange-100 transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      <p className="font-bold text-gray-400 group-hover:text-orange-600 text-base transition-colors">
+      <p className="font-bold text-gray-400 group-hover:text-orange-600 text-sm leading-tight transition-colors">
         Meja {tableNumber}
       </p>
-      <p className="text-xs text-gray-300 group-hover:text-orange-400 mt-1 transition-colors">
-        {loading ? 'Membuka...' : 'Kosong · Klik untuk buka'}
+      <p className="text-xs text-gray-300 group-hover:text-orange-400 mt-1 transition-colors leading-tight">
+        {loading ? 'Membuka...' : 'Kosong'}
       </p>
     </button>
   )
 }
-
-

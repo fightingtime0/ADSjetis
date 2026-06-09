@@ -73,42 +73,42 @@ export default async function HomestayPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Homestay</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{unit.name}</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 truncate">Homestay</h1>
+          <p className="text-xs md:text-sm text-gray-500 mt-0.5 truncate">{unit.name}</p>
         </div>
         <Link href="/homestay/booking/baru"
-          className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm">
+          className="flex-shrink-0 inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold px-3 md:px-4 py-2 md:py-2.5 rounded-xl transition-colors shadow-sm whitespace-nowrap">
           + Booking Baru
         </Link>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: 'Tingkat Hunian', value: `${occupancyRate}%`, sub: `${occupiedRooms}/${totalRooms} villa`, color: 'text-teal-600' },
           { label: 'Tersedia', value: String(totalRooms - occupiedRooms), sub: 'villa siap', color: 'text-emerald-600' },
           { label: 'Check-in Hari Ini', value: String(checkInsToday.length), sub: 'tamu masuk', color: 'text-blue-600' },
           { label: 'Check-out Hari Ini', value: String(checkOutsToday.length), sub: 'tamu keluar', color: 'text-orange-600' },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4">
-            <p className="text-xs text-gray-500 font-medium">{s.label}</p>
-            <p className={`text-2xl font-bold mt-1 ${s.color}`}>{s.value}</p>
+          <div key={s.label} className="bg-white rounded-xl border border-gray-100 shadow-sm px-3 md:px-5 py-3 md:py-4">
+            <p className="text-xs text-gray-500 font-medium leading-tight">{s.label}</p>
+            <p className={`text-xl md:text-2xl font-bold mt-1 ${s.color}`}>{s.value}</p>
             <p className="text-xs text-gray-400 mt-0.5">{s.sub}</p>
           </div>
         ))}
       </div>
 
       {/* Revenue Banner */}
-      <div className="bg-gradient-to-r from-teal-600 to-emerald-600 rounded-xl px-6 py-4 text-white flex items-center justify-between">
-        <div>
+      <div className="bg-gradient-to-r from-teal-600 to-emerald-600 rounded-xl px-4 md:px-6 py-4 text-white flex items-center justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-sm opacity-80">Pendapatan Bulan Ini</p>
-          <p className="text-3xl font-bold mt-0.5">{formatRupiah(Number(revenueMonth._sum.totalPrice ?? 0))}</p>
+          <p className="text-2xl md:text-3xl font-bold mt-0.5 truncate">{formatRupiah(Number(revenueMonth._sum.totalPrice ?? 0))}</p>
         </div>
         <Link href="/homestay/booking"
-          className="text-sm bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors">
-          Lihat Semua Booking →
+          className="flex-shrink-0 text-sm bg-white/20 hover:bg-white/30 px-3 md:px-4 py-2 rounded-lg transition-colors whitespace-nowrap">
+          Lihat Booking →
         </Link>
       </div>
 

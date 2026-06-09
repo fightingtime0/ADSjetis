@@ -58,29 +58,29 @@ export default async function B2BPage({
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">B2B Invoice</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Toko → Restoran · inter-unit</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 truncate">B2B Invoice</h1>
+          <p className="text-xs md:text-sm text-gray-500 mt-0.5">Toko → Restoran · inter-unit</p>
         </div>
         <Link href="/b2b/baru"
-          className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors">
+          className="flex-shrink-0 inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-3 md:px-4 py-2 md:py-2.5 rounded-lg transition-colors whitespace-nowrap">
           + Buat Invoice
         </Link>
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: 'Total Invoice', value: String(total), sub: 'semua status', color: 'text-gray-800' },
           { label: 'Sudah Lunas', value: String(summary.find((s) => s.status === 'PAID')?._count.id ?? 0), sub: formatRupiah(Number(paidTotal)), color: 'text-green-600' },
           { label: 'Menunggu Bayar', value: String(summary.find((s) => s.status === 'SENT')?._count.id ?? 0), sub: formatRupiah(Number(sentTotal)), color: 'text-blue-600' },
           { label: 'Draft', value: String(summary.find((s) => s.status === 'DRAFT')?._count.id ?? 0), sub: 'belum dikirim', color: 'text-gray-500' },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4">
-            <p className="text-xs text-gray-500 font-medium">{s.label}</p>
-            <p className={`text-2xl font-bold mt-1 ${s.color}`}>{s.value}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{s.sub}</p>
+          <div key={s.label} className="bg-white rounded-xl border border-gray-100 shadow-sm px-3 md:px-5 py-3 md:py-4">
+            <p className="text-xs text-gray-500 font-medium leading-tight">{s.label}</p>
+            <p className={`text-xl md:text-2xl font-bold mt-1 ${s.color}`}>{s.value}</p>
+            <p className="text-xs text-gray-400 mt-0.5 truncate">{s.sub}</p>
           </div>
         ))}
       </div>

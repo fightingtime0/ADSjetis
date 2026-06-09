@@ -87,14 +87,14 @@ export default async function PenginapanPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{unit.name}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{unit.location}</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 truncate">{unit.name}</h1>
+          {unit.location && <p className="text-xs md:text-sm text-gray-500 mt-0.5 truncate">{unit.location}</p>}
         </div>
         <Link
           href="/penginapan/booking/baru"
-          className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors"
+          className="flex-shrink-0 inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold px-3 md:px-4 py-2 md:py-2.5 rounded-lg transition-colors whitespace-nowrap"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -104,18 +104,18 @@ export default async function PenginapanPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: 'Tingkat Hunian', value: `${occupancyRate}%`, sub: `${occupied} dari ${rooms.length} kamar`, color: occupancyRate > 70 ? 'bg-green-500' : 'bg-purple-500' },
           { label: 'Kamar Tersedia', value: available.toString(), sub: 'siap check-in', color: 'bg-green-500' },
           { label: 'Check-in Hari Ini', value: todayCheckIns.length.toString(), sub: 'tamu dijadwalkan', color: todayCheckIns.length > 0 ? 'bg-blue-500' : 'bg-gray-400' },
           { label: 'Check-out Hari Ini', value: todayCheckOuts.length.toString(), sub: 'kamar akan tersedia', color: todayCheckOuts.length > 0 ? 'bg-amber-500' : 'bg-gray-400' },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-start gap-4">
-            <div className={`w-10 h-10 ${s.color} rounded-lg flex-shrink-0`} />
-            <div>
-              <p className="text-xs text-gray-500 font-medium">{s.label}</p>
-              <p className="text-xl font-bold text-gray-900 mt-0.5">{s.value}</p>
+          <div key={s.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 md:p-5 flex items-start gap-3">
+            <div className={`w-8 h-8 md:w-10 md:h-10 ${s.color} rounded-lg flex-shrink-0 mt-0.5`} />
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500 font-medium leading-tight">{s.label}</p>
+              <p className="text-base md:text-xl font-bold text-gray-900 mt-0.5 truncate">{s.value}</p>
               <p className="text-xs text-gray-400 mt-0.5">{s.sub}</p>
             </div>
           </div>

@@ -156,9 +156,9 @@ export default async function LaporanPage({
     <div className="space-y-6">
       {/* Header + month nav */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Laporan Konsolidasi</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Ringkasan semua unit bisnis</p>
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 truncate">Laporan Konsolidasi</h1>
+          <p className="text-xs md:text-sm text-gray-500 mt-0.5">Ringkasan semua unit bisnis</p>
         </div>
         <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2 shadow-sm">
           <Link href={`?month=${prevMonth}`} className="text-gray-400 hover:text-gray-700 text-lg leading-none">‹</Link>

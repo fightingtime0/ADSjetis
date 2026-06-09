@@ -71,6 +71,8 @@ export function OrderMejaClient({ order: initialOrder, menuItems, categories, ta
   const [discount, setDiscount] = useState(0)
   const [paying, setPaying] = useState(false)
   const [payError, setPayError] = useState('')
+  // Mobile: toggle antara panel Menu dan panel Order
+  const [activeTab, setActiveTab] = useState<'menu' | 'order'>('menu')
 
   const isEditable = order.status === 'OPEN'
   const isBillable = order.status === 'OPEN' || order.status === 'BILLED'
@@ -151,9 +153,44 @@ export function OrderMejaClient({ order: initialOrder, menuItems, categories, ta
   }
 
   return (
-    <div className="flex gap-5 h-[calc(100vh-120px)]">
+    <>
+    {/* ── Mobile Tab Bar ─────────────────────────────────────────
+        Hanya tampil di layar < md. Desktop: panel selalu side-by-side.
+    ──────────────────────────────────────────────────────────── */}
+    <div className="flex md:hidden mb-3 bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+      <button
+        onClick={() => setActiveTab('menu')}
+        className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
+          activeTab === 'menu'
+            ? 'bg-orange-600 text-white'
+            : 'text-gray-600 hover:bg-gray-50'
+        }`}
+      >
+        🍽 Menu
+      </button>
+      <button
+        onClick={() => setActiveTab('order')}
+        className={`flex-1 py-2.5 text-sm font-semibold transition-colors relative ${
+          activeTab === 'order'
+            ? 'bg-orange-600 text-white'
+            : 'text-gray-600 hover:bg-gray-50'
+        }`}
+      >
+        Order{activeItems.length > 0 ? ` (${activeItems.length})` : ''}
+        {/* Dot indicator saat ada item & sedang lihat tab menu */}
+        {activeItems.length > 0 && activeTab !== 'order' && (
+          <span className="absolute top-2 right-4 w-2 h-2 rounded-full bg-orange-500" />
+        )}
+      </button>
+    </div>
+
+    {/* ── Panel Wrapper ──────────────────────────────────────────
+        Mobile:  flex-col, panel aktif penuh lebar, panel lain hidden
+        Desktop: flex-row side-by-side dengan tinggi tetap
+    ──────────────────────────────────────────────────────────── */}
+    <div className="flex flex-col md:flex-row md:gap-5 md:h-[calc(100vh-120px)] gap-0">
       {/* Kiri: Pilih Menu */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className={`flex-1 flex flex-col min-w-0 ${activeTab !== 'menu' ? 'hidden md:flex' : ''}`}>
         <div className="mb-4 flex gap-3 flex-wrap">
           <input
             type="text"
@@ -202,7 +239,7 @@ export function OrderMejaClient({ order: initialOrder, menuItems, categories, ta
       </div>
 
       {/* Kanan: Order Detail */}
-      <div className="w-80 xl:w-96 flex flex-col bg-white rounded-2xl border border-gray-100 shadow-sm flex-shrink-0">
+      <div className={`md:w-80 xl:w-96 flex flex-col bg-white rounded-2xl border border-gray-100 shadow-sm flex-shrink-0 ${activeTab !== 'order' ? 'hidden md:flex' : ''}`}>
         {/* Header */}
         <div className="px-5 py-4 border-b border-gray-100">
           <div className="flex items-center justify-between mb-1">
@@ -222,7 +259,8 @@ export function OrderMejaClient({ order: initialOrder, menuItems, categories, ta
           {order.items.length === 0 && (
             <div className="py-16 text-center text-sm text-gray-400">
               <p className="text-3xl mb-2">🍽</p>
-              Belum ada item. Pilih menu dari kiri.
+              <span className="md:hidden">Belum ada item. Pilih dari tab Menu.</span>
+              <span className="hidden md:inline">Belum ada item. Pilih menu dari kiri.</span>
             </div>
           )}
 
@@ -300,8 +338,9 @@ export function OrderMejaClient({ order: initialOrder, menuItems, categories, ta
           </button>
         </div>
       </div>
+    </div>{/* end panel wrapper */}
 
-      {/* Modal Bayar */}
+    {/* Modal Bayar */}
       {showPayModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
@@ -391,7 +430,7 @@ export function OrderMejaClient({ order: initialOrder, menuItems, categories, ta
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
 

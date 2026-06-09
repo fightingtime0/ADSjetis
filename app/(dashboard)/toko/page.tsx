@@ -105,14 +105,14 @@ export default async function TokoPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{unit.name}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{unit.location}</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 truncate">{unit.name}</h1>
+          {unit.location && <p className="text-xs md:text-sm text-gray-500 mt-0.5 truncate">{unit.location}</p>}
         </div>
         <Link
           href="/toko/kasir"
-          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors"
+          className="flex-shrink-0 inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-3 md:px-4 py-2 md:py-2.5 rounded-lg transition-colors whitespace-nowrap"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -121,18 +121,18 @@ export default async function TokoPage() {
         </Link>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stats Cards — 2 kolom di mobile, 4 di desktop */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {stats.map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-start gap-4">
-            <div className={`w-10 h-10 ${s.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
-              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div key={s.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 md:p-5 flex items-start gap-3">
+            <div className={`w-8 h-8 md:w-10 md:h-10 ${s.color} rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5`}>
+              <svg className="w-4 h-4 md:w-5 md:h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d={s.icon} />
               </svg>
             </div>
-            <div>
-              <p className="text-xs text-gray-500 font-medium">{s.label}</p>
-              <p className="text-xl font-bold text-gray-900 mt-0.5">{s.value}</p>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500 font-medium leading-tight">{s.label}</p>
+              <p className="text-base md:text-xl font-bold text-gray-900 mt-0.5 truncate">{s.value}</p>
               <p className="text-xs text-gray-400 mt-0.5">{s.sub}</p>
             </div>
           </div>
@@ -153,15 +153,16 @@ export default async function TokoPage() {
               <p className="px-5 py-8 text-sm text-gray-400 text-center">Belum ada transaksi hari ini</p>
             )}
             {recentTrx.map((trx) => (
-              <div key={trx.id} className="px-5 py-3.5 flex items-center justify-between gap-4">
+              <div key={trx.id} className="px-4 md:px-5 py-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-800 truncate">{trx.invoiceNumber}</p>
-                  <p className="text-xs text-gray-400">
-                    {trx.customer?.name ?? 'Umum'} · {trx._count.items} item · {formatDateTime(trx.createdAt)}
+                  <p className="text-xs text-gray-400 truncate">
+                    {trx.customer?.name ?? 'Umum'} · {trx._count.items} item
+                    <span className="hidden sm:inline"> · {formatDateTime(trx.createdAt)}</span>
                   </p>
                 </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_BADGE[trx.status]}`}>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className={`hidden sm:inline text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_BADGE[trx.status]}`}>
                     {STATUS_LABEL[trx.status]}
                   </span>
                   <span className="text-sm font-semibold text-gray-900">{formatRupiah(Number(trx.total))}</span>
