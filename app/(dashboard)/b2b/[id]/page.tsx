@@ -36,14 +36,14 @@ export default function B2BDetailPage() {
   const [payError,  setPayError]  = useState('')
 
   useEffect(() => {
-    fetch(`/api/b2b/invoice/${(await paramsPromise).id}`)
+    fetch(`/api/b2b/invoice/${params.id}`)
       .then((r) => r.json())
       .then((data) => { setInvoice(data); setLoading(false) })
-  }, [(await paramsPromise).id])
+  }, [params.id])
 
   async function handleAction(action: string, paidAmount?: number) {
     setActionLoading(true)
-    const res = await fetch(`/api/b2b/invoice/${(await paramsPromise).id}`, {
+    const res = await fetch(`/api/b2b/invoice/${params.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, paidAmount }),
@@ -234,6 +234,8 @@ export default function B2BDetailPage() {
     </div>
   )
 }
+
+
 
 
 

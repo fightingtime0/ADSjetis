@@ -126,7 +126,7 @@ export default async function HomestayPage() {
             return (
               <VillaCard
                 key={room.id}
-                room={{ id: room.id, name: room.name, status: room.status, capacity: room.capacity, roomType: room.roomType }}
+                room={{ id: room.id, name: room.name, status: room.status, capacity: room.roomType?.capacity ?? null, roomType: room.roomType }}
                 activeBooking={activeBooking ? {
                   id:         activeBooking.id,
                   guestName:  activeBooking.guestName,
@@ -345,5 +345,7 @@ function VillaCard({ room, activeBooking, tonightPrice, facilityNames }: VillaCa
     </div>
   )
 }
+
+
 
 

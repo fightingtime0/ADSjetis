@@ -21,9 +21,10 @@ function serializeInvoice(inv: any) {
   }
 }
 
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const invoice = await prisma.b2BInvoice.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     include: {
       sellerUnit: { select: { id: true, name: true, taxRate: true } },
       buyerUnit:  { select: { id: true, name: true } },
@@ -35,14 +36,15 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   return NextResponse.json(serializeInvoice(invoice))
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { action, paidAmount } = await req.json()
 
   const invoice = await prisma.b2BInvoice.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     include: { items: { include: { sellerProduct: true } } },
   })
   if (!invoice) return NextResponse.json({ error: 'Invoice tidak ditemukan' }, { status: 404 })
@@ -53,7 +55,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       return NextResponse.json({ error: 'Hanya invoice DRAFT yang bisa dikirim' }, { status: 400 })
     }
     const updated = await prisma.b2BInvoice.update({
-      where: { id: params.id },
+      where: { id: id },
       data: { status: 'SENT' },
     })
     return NextResponse.json(serializeInvoice(updated))
@@ -78,7 +80,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     const updated = await prisma.$transaction(async (tx) => {
       const upd = await tx.b2BInvoice.update({
-        where: { id: params.id },
+        where: { id: id },
         data: {
           paidAmount: totalPaid,
           status:     newStatus,
@@ -126,7 +128,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       return NextResponse.json({ error: 'Hanya invoice DRAFT atau SENT yang bisa dibatalkan' }, { status: 400 })
     }
     const updated = await prisma.b2BInvoice.update({
-      where: { id: params.id },
+      where: { id: id },
       data: { status: 'CANCELLED' },
     })
     return NextResponse.json(serializeInvoice(updated))
@@ -134,3 +136,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   return NextResponse.json({ error: 'Action tidak dikenal' }, { status: 400 })
 }
+
+
+

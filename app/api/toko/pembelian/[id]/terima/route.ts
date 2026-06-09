@@ -4,7 +4,8 @@ import { prisma } from '@/lib/prisma'
 
 // PATCH /api/toko/pembelian/[id]/terima
 // Terima barang: update qtyRecv, tambah stok, ubah status PO
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const session = await getSession()
   if (!session || !['OWNER', 'MANAGER', 'STAFF'].includes(session.user.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -15,7 +16,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const { receivedItems } = body
 
   const order = await prisma.purchaseOrder.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     include: { items: { include: { product: true } } },
   })
 
@@ -77,9 +78,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   })
 
   const updated = await prisma.purchaseOrder.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     include: { supplier: true, items: { include: { product: true } } },
   })
 
   return NextResponse.json(updated)
 }
+
+
+

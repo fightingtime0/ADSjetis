@@ -4,9 +4,10 @@ import { authOptions } from '@/lib/auth'
 import { updateBookingStatus, serializeBooking } from '@/lib/accommodation'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const booking = await prisma.booking.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     include: {
       room: {
         include: {
@@ -31,16 +32,20 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   return NextResponse.json(serialized)
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
     const { status } = await req.json()
     if (!status) return NextResponse.json({ error: 'Status wajib diisi' }, { status: 400 })
-    const updated = await updateBookingStatus(params.id, status)
+    const updated = await updateBookingStatus(id, status)
     return NextResponse.json(serializeBooking(updated))
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 400 })
   }
 }
+
+
+

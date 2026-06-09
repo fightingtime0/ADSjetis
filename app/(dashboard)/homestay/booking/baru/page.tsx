@@ -36,11 +36,12 @@ export default async function BookingBaruPage({
         <p className="text-sm text-gray-500 mt-0.5">Homestay · {unit.name}</p>
       </div>
       <HomestayBookingFormClient
-        rooms={serialized}
+        rooms={serialized as any}
         defaultRoomId={searchParams.roomId ?? ''}
       />
     </div>
   )
 }
+
 
 

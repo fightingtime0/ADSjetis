@@ -37,3 +37,6 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ breakdown, total, totalNights })
 }
+
+
+

@@ -3,7 +3,8 @@ import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 // POST — tambah pembayaran (DP / FULL / REFUND)
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const booking = await prisma.booking.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     include: { payments: true },
   })
   if (!booking) return NextResponse.json({ error: 'Booking tidak ditemukan' }, { status: 404 })
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const payment = await prisma.$transaction(async (tx) => {
     const pay = await tx.bookingPayment.create({
       data: {
-        bookingId: params.id,
+        bookingId: id,
         amount: Number(amount),
         method,
         type,
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     })
 
     await tx.booking.update({
-      where: { id: params.id },
+      where: { id: id },
       data: { paidAmount: newPaidAmount },
     })
 
@@ -68,3 +69,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   return NextResponse.json({ ...payment, amount: Number(payment.amount) }, { status: 201 })
 }
+
+
+

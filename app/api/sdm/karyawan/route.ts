@@ -60,3 +60,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ...employee, salary: employee.salary ? Number(employee.salary) : null }, { status: 201 })
 }
+
+
+

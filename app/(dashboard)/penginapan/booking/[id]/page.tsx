@@ -9,7 +9,7 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
   if (!session) redirect('/login')
 
   const booking = await prisma.booking.findUnique({
-    where: { id: (await paramsPromise).id },
+    where: { id: (await params).id },
     include: {
       room: {
         include: {
@@ -72,6 +72,7 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
     />
   )
 }
+
 
 
 

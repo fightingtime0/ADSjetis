@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const booking = await prisma.booking.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     include: {
       room: {
         include: {
@@ -34,7 +35,8 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
 }
 
 // PATCH — ubah status booking: CONFIRMED→CHECKED_IN, CHECKED_IN→CHECKED_OUT, atau CANCELLED
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -42,7 +44,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const { status, note } = body
 
   const booking = await prisma.booking.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     include: { room: true },
   })
   if (!booking) return NextResponse.json({ error: 'Booking tidak ditemukan' }, { status: 404 })
@@ -61,7 +63,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const updated = await prisma.$transaction(async (tx) => {
     const bk = await tx.booking.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         ...(status && { status }),
         ...(note !== undefined && { note }),
@@ -80,7 +82,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       const otherActive = await tx.booking.findFirst({
         where: {
           roomId: booking.roomId,
-          id: { not: params.id },
+          id: { not: id },
           status: 'CHECKED_IN',
         },
       })
@@ -99,3 +101,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     dpAmount: Number((updated as any).dpAmount ?? 0),
   })
 }
+
+
+

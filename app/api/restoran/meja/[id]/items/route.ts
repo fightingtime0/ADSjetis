@@ -3,7 +3,8 @@ import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 // POST — tambah item ke order
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'menuItemId dan qty wajib diisi' }, { status: 400 })
   }
 
-  const order = await prisma.tableOrder.findUnique({ where: { id: params.id } })
+  const order = await prisma.tableOrder.findUnique({ where: { id: id } })
   if (!order) return NextResponse.json({ error: 'Order tidak ditemukan' }, { status: 404 })
   if (order.status !== 'OPEN') {
     return NextResponse.json({ error: 'Order sudah di-bill atau selesai' }, { status: 400 })
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   // Cek apakah sudah ada item yang sama (status PENDING), tambah qty saja
   const existingItem = await prisma.tableOrderItem.findFirst({
-    where: { orderId: params.id, menuItemId, status: 'PENDING' },
+    where: { orderId: id, menuItemId, status: 'PENDING' },
   })
 
   let item
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   } else {
     item = await prisma.tableOrderItem.create({
       data: {
-        orderId: params.id,
+        orderId: id,
         menuItemId,
         qty,
         price: menuItem.price,
@@ -59,13 +60,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   // Recalculate totals
-  await recalcOrder(params.id)
+  await recalcOrder(id)
 
   return NextResponse.json(item, { status: 201 })
 }
 
 // PATCH — update status satu item (PENDING→COOKING→SERVED) atau cancel
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -91,14 +93,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   })
 
   if (status === 'CANCELLED' || qty !== undefined) {
-    await recalcOrder(params.id)
+    await recalcOrder(id)
   }
 
   return NextResponse.json(updated)
 }
 
 // DELETE — hapus item dari order
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -107,7 +110,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   if (!itemId) return NextResponse.json({ error: 'itemId diperlukan' }, { status: 400 })
 
   await prisma.tableOrderItem.delete({ where: { id: itemId } })
-  await recalcOrder(params.id)
+  await recalcOrder(id)
 
   return NextResponse.json({ success: true })
 }
@@ -130,3 +133,6 @@ async function recalcOrder(orderId: string) {
     data: { subtotal, tax, total },
   })
 }
+
+
+

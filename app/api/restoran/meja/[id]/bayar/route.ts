@@ -3,7 +3,8 @@ import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 // POST — checkout order: bayar + potong stok bahan baku
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const order = await prisma.tableOrder.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     include: {
       items: {
         where: { status: { not: 'CANCELLED' } },
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const result = await prisma.$transaction(async (tx) => {
     // Update order → PAID
     const paidOrder = await tx.tableOrder.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         status: 'PAID',
         paymentMethod,
@@ -92,7 +93,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // Update semua item aktif → SERVED (jika masih PENDING/COOKING)
     await tx.tableOrderItem.updateMany({
-      where: { orderId: params.id, status: { in: ['PENDING', 'COOKING'] } },
+      where: { orderId: id, status: { in: ['PENDING', 'COOKING'] } },
       data: { status: 'SERVED' },
     })
 
@@ -128,3 +129,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   return NextResponse.json(result)
 }
+
+
+

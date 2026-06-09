@@ -46,10 +46,11 @@ export default async function BookingBaruPage({
 
   return (
     <BookingFormClient
-      rooms={serialized}
+      rooms={serialized as any}
       preselectedRoomId={searchParams.roomId ?? null}
     />
   )
 }
+
 
 

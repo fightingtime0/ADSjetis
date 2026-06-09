@@ -9,7 +9,7 @@ export default async function HomestayBookingDetailPage({ params }: { params: Pr
   if (!session) redirect('/login')
 
   const booking = await prisma.booking.findUnique({
-    where: { id: (await paramsPromise).id },
+    where: { id: (await params).id },
     include: {
       room: {
         include: {
@@ -50,6 +50,7 @@ export default async function HomestayBookingDetailPage({ params }: { params: Pr
     </div>
   )
 }
+
 
 
 
