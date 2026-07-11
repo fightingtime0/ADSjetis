@@ -9,16 +9,18 @@ import {
 import Link from 'next/link'
 
 const UNIT_COLORS: Record<string, { bg: string; text: string; bar: string }> = {
-  RETAIL:     { bg: 'bg-sky-50',    text: 'text-sky-700',    bar: 'bg-sky-500'    },
-  RESTAURANT: { bg: 'bg-orange-50', text: 'text-orange-700', bar: 'bg-orange-500' },
-  LODGING:    { bg: 'bg-purple-50', text: 'text-purple-700', bar: 'bg-purple-500' },
-  HOMESTAY:   { bg: 'bg-teal-50',   text: 'text-teal-700',   bar: 'bg-teal-500'   },
+  RETAIL:     { bg: 'bg-sky-50',     text: 'text-sky-700',     bar: 'bg-sky-500'     },
+  RESTAURANT: { bg: 'bg-orange-50',  text: 'text-orange-700',  bar: 'bg-orange-500'  },
+  LODGING:    { bg: 'bg-purple-50',  text: 'text-purple-700',  bar: 'bg-purple-500'  },
+  HOMESTAY:   { bg: 'bg-teal-50',    text: 'text-teal-700',    bar: 'bg-teal-500'    },
+  PERTASHOP:  { bg: 'bg-emerald-50', text: 'text-emerald-700', bar: 'bg-emerald-500' },
 }
 const UNIT_ICONS: Record<string, string> = {
   RETAIL:     '🛒',
   RESTAURANT: '🍽️',
   LODGING:    '🛏️',
   HOMESTAY:   '🏡',
+  PERTASHOP:  '⛽',
 }
 
 export default async function LaporanPage({
@@ -50,6 +52,7 @@ export default async function LaporanPage({
     restoRevenue,
     penginapanRevenue,
     homestayRevenue,
+    pertashopRevenue,
     b2bPaid,
     employeeCount,
     trendData,
@@ -76,6 +79,10 @@ export default async function LaporanPage({
       where: { unit: { type: 'HOMESTAY' }, status: { in: ['CHECKED_IN', 'CHECKED_OUT'] }, checkIn: { gte: mStart, lte: mEnd } },
       _sum: { totalPrice: true }, _count: { id: true },
     }),
+    prisma.fuelSale.aggregate({
+      where: { unit: { type: 'PERTASHOP' }, soldAt: { gte: mStart, lte: mEnd } },
+      _sum: { total: true }, _count: { id: true },
+    }),
     prisma.b2BInvoice.aggregate({
       where: { status: 'PAID', paidAt: { gte: mStart, lte: mEnd } },
       _sum: { total: true }, _count: { id: true },
@@ -84,11 +91,12 @@ export default async function LaporanPage({
 
     // Trend 6 months
     Promise.all(trendMonths.map(async (m) => {
-      const [t, r, p, h] = await Promise.all([
+      const [t, r, p, h, f] = await Promise.all([
         prisma.transaction.aggregate({ where: { unit: { type: 'RETAIL' }, status: 'PAID', createdAt: { gte: m.start, lte: m.end } }, _sum: { total: true } }),
         prisma.tableOrder.aggregate({ where: { unit: { type: 'RESTAURANT' }, status: 'PAID', paidAt: { gte: m.start, lte: m.end } }, _sum: { total: true } }),
         prisma.booking.aggregate({ where: { unit: { type: 'LODGING' }, status: { in: ['CHECKED_IN', 'CHECKED_OUT'] }, checkIn: { gte: m.start, lte: m.end } }, _sum: { totalPrice: true } }),
         prisma.booking.aggregate({ where: { unit: { type: 'HOMESTAY' }, status: { in: ['CHECKED_IN', 'CHECKED_OUT'] }, checkIn: { gte: m.start, lte: m.end } }, _sum: { totalPrice: true } }),
+        prisma.fuelSale.aggregate({ where: { unit: { type: 'PERTASHOP' }, soldAt: { gte: m.start, lte: m.end } }, _sum: { total: true } }),
       ])
       return {
         label:      m.label,
@@ -96,6 +104,7 @@ export default async function LaporanPage({
         restoran:   Number(r._sum.total ?? 0),
         penginapan: Number(p._sum.totalPrice ?? 0),
         homestay:   Number(h._sum.totalPrice ?? 0),
+        pertashop:  Number(f._sum.total ?? 0),
       }
     })),
 
@@ -131,13 +140,15 @@ export default async function LaporanPage({
   const restoRev      = Number(restoRevenue._sum.total ?? 0)
   const penginapanRev = Number(penginapanRevenue._sum.totalPrice ?? 0)
   const homestayRev   = Number(homestayRevenue._sum.totalPrice ?? 0)
-  const grandTotal    = tokoRev + restoRev + penginapanRev + homestayRev
+  const pertashopRev  = Number(pertashopRevenue._sum.total ?? 0)
+  const grandTotal    = tokoRev + restoRev + penginapanRev + homestayRev + pertashopRev
 
   const unitData = [
     { label: 'Toko Retail',  type: 'RETAIL',     revenue: tokoRev,       count: Number(tokoRevenue._count.id)       },
     { label: 'Restoran',     type: 'RESTAURANT',  revenue: restoRev,      count: Number(restoRevenue._count.id)      },
     { label: 'Penginapan',   type: 'LODGING',     revenue: penginapanRev, count: Number(penginapanRevenue._count.id) },
     { label: 'Homestay',     type: 'HOMESTAY',    revenue: homestayRev,   count: Number(homestayRevenue._count.id)   },
+    { label: 'Pertashop',    type: 'PERTASHOP',   revenue: pertashopRev,  count: Number(pertashopRevenue._count.id)  },
   ]
 
   const maxRevenue = Math.max(...unitData.map((u) => u.revenue), 1)
@@ -150,7 +161,7 @@ export default async function LaporanPage({
   const currentMonthLabel = format(now, 'MMMM yyyy')
 
   // Trend max for bar chart
-  const trendMax = Math.max(...trendData.map((t) => t.toko + t.restoran + t.penginapan + t.homestay), 1)
+  const trendMax = Math.max(...trendData.map((t) => t.toko + t.restoran + t.penginapan + t.homestay + t.pertashop), 1)
 
   return (
     <div className="space-y-6">
@@ -291,7 +302,7 @@ export default async function LaporanPage({
         <h2 className="text-sm font-semibold text-gray-700 mb-5">Tren Pendapatan 6 Bulan</h2>
         <div className="flex items-end gap-3 h-36">
           {trendData.map((m) => {
-            const total = m.toko + m.restoran + m.penginapan + m.homestay
+            const total = m.toko + m.restoran + m.penginapan + m.homestay + m.pertashop
             const pct   = (total / trendMax) * 100
             const isCurrentM = m.label === format(now, 'MMM yy')
             return (
@@ -301,10 +312,11 @@ export default async function LaporanPage({
                   {/* Stacked bar */}
                   <div className="w-full h-full rounded-t-lg overflow-hidden flex flex-col-reverse">
                     {[
-                      { val: m.toko,       color: 'bg-sky-400'    },
-                      { val: m.restoran,   color: 'bg-orange-400' },
-                      { val: m.penginapan, color: 'bg-purple-400' },
-                      { val: m.homestay,   color: 'bg-teal-400'   },
+                      { val: m.toko,       color: 'bg-sky-400'     },
+                      { val: m.restoran,   color: 'bg-orange-400'  },
+                      { val: m.penginapan, color: 'bg-purple-400'  },
+                      { val: m.homestay,   color: 'bg-teal-400'    },
+                      { val: m.pertashop,  color: 'bg-emerald-400' },
                     ].map(({ val, color }) => (
                       <div key={color} className={`${color} w-full`}
                         style={{ height: total > 0 ? `${(val / total) * 100}%` : '0%' }} />
@@ -319,10 +331,11 @@ export default async function LaporanPage({
         {/* Legend */}
         <div className="flex flex-wrap gap-4 mt-4 pt-3 border-t border-gray-50">
           {[
-            { label: 'Toko',      color: 'bg-sky-400'    },
-            { label: 'Restoran',  color: 'bg-orange-400' },
-            { label: 'Penginapan',color: 'bg-purple-400' },
-            { label: 'Homestay',  color: 'bg-teal-400'   },
+            { label: 'Toko',      color: 'bg-sky-400'     },
+            { label: 'Restoran',  color: 'bg-orange-400'  },
+            { label: 'Penginapan',color: 'bg-purple-400'  },
+            { label: 'Homestay',  color: 'bg-teal-400'    },
+            { label: 'Pertashop', color: 'bg-emerald-400' },
           ].map((item) => (
             <div key={item.label} className="flex items-center gap-1.5">
               <div className={`w-3 h-3 rounded-sm ${item.color}`} />

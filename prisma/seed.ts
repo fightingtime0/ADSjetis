@@ -61,6 +61,19 @@ async function main() {
     },
   })
 
+  const pertashop = await prisma.businessUnit.upsert({
+    where: { id: 'unit-pertashop' },
+    update: {},
+    create: {
+      id: 'unit-pertashop',
+      name: 'Pertashop Jetis',
+      type: UnitType.PERTASHOP,
+      location: 'Jl. Raya Jetis KM 3',
+      phone: '0812-0005-0005',
+      taxRate: 0,
+    },
+  })
+
   console.log('✅ Business units created')
 
   // ============================================================
@@ -116,7 +129,37 @@ async function main() {
     },
   })
 
+  const staffPertashop = await prisma.user.upsert({
+    where: { email: 'staff.pertashop@bisnis.com' },
+    update: {},
+    create: {
+      email: 'staff.pertashop@bisnis.com',
+      name: 'Joko Susilo',
+      password: hashedPassword,
+      role: Role.STAFF,
+      primaryUnitId: pertashop.id,
+    },
+  })
+
   console.log('✅ Users created')
+
+  // ============================================================
+  // PERTASHOP — PRODUK BBM
+  // ============================================================
+  await prisma.fuelProduct.upsert({
+    where: { id: 'fuel-pertamax' },
+    update: {},
+    create: {
+      id: 'fuel-pertamax',
+      name: 'Pertamax',
+      buyPrice: 12000,
+      sellPrice: 13000,
+      stock: 0,
+      unitId: pertashop.id,
+    },
+  })
+
+  console.log('✅ Produk BBM Pertashop created')
 
   // ============================================================
   // CATEGORIES

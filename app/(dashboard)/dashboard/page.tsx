@@ -12,6 +12,7 @@ export default async function DashboardPage() {
       HOMESTAY:   '/homestay',
       RESTAURANT: '/restoran',
       LODGING:    '/penginapan',
+      PERTASHOP:  '/pertashop',
     }
     const dest = session.user.primaryUnitType
       ? unitRedirect[session.user.primaryUnitType]
@@ -26,10 +27,11 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {[
-          { label: 'Toko Retail',  color: 'bg-blue-500',   href: '/toko' },
-          { label: 'Homestay',     color: 'bg-green-500',  href: '/homestay' },
-          { label: 'Restoran',     color: 'bg-orange-500', href: '/restoran' },
-          { label: 'Penginapan',   color: 'bg-purple-500', href: '/penginapan' },
+          { label: 'Toko Retail',  color: 'bg-blue-500',    href: '/toko' },
+          { label: 'Homestay',     color: 'bg-green-500',   href: '/homestay' },
+          { label: 'Restoran',     color: 'bg-orange-500',  href: '/restoran' },
+          { label: 'Penginapan',   color: 'bg-purple-500',  href: '/penginapan' },
+          { label: 'Pertashop',    color: 'bg-emerald-500', href: '/pertashop' },
         ].map((unit) => (
           <a
             key={unit.href}

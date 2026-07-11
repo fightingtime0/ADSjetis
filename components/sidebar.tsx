@@ -55,6 +55,13 @@ const NAV_ITEMS: NavItem[] = [
     unitTypes: ['LODGING'],
   },
   {
+    label: 'Pertashop',
+    href: '/pertashop',
+    icon: <Icon d="M3 21h10M5 21V5a2 2 0 012-2h2a2 2 0 012 2v16M13 9h2a2 2 0 012 2v6a1.5 1.5 0 003 0V9l-2.5-2.5M6.5 7h3" />,
+    roles: ['OWNER', 'MANAGER', 'STAFF', 'CASHIER'],
+    unitTypes: ['PERTASHOP'],
+  },
+  {
     label: 'B2B Invoice',
     href: '/b2b',
     icon: <Icon d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />,

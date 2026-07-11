@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
     penginapanBookings,
     homestayRevenue,
     homestayBookings,
+    pertashopRevenue,
     b2bRevenue,
     employeeCount,
     trendData,
@@ -61,6 +62,12 @@ export async function GET(req: NextRequest) {
     }),
     prisma.booking.count({ where: { unit: { type: 'HOMESTAY' }, createdAt: { gte: mStart, lte: mEnd } } }),
 
+    // Pertashop
+    prisma.fuelSale.aggregate({
+      where: { unit: { type: 'PERTASHOP' }, soldAt: { gte: mStart, lte: mEnd } },
+      _sum: { total: true }, _count: { id: true },
+    }),
+
     // B2B
     prisma.b2BInvoice.aggregate({
       where: { status: 'PAID', paidAt: { gte: mStart, lte: mEnd } },
@@ -72,7 +79,7 @@ export async function GET(req: NextRequest) {
 
     // Trend 6 bulan
     Promise.all(trendMonths.map(async (m) => {
-      const [toko, resto, penginapan, homestay] = await Promise.all([
+      const [toko, resto, penginapan, homestay, pertashop] = await Promise.all([
         prisma.transaction.aggregate({
           where: { unit: { type: 'RETAIL' }, status: 'PAID', createdAt: { gte: m.start, lte: m.end } },
           _sum: { total: true },
@@ -89,6 +96,10 @@ export async function GET(req: NextRequest) {
           where: { unit: { type: 'HOMESTAY' }, status: { in: ['CHECKED_IN', 'CHECKED_OUT'] }, checkIn: { gte: m.start, lte: m.end } },
           _sum: { totalPrice: true },
         }),
+        prisma.fuelSale.aggregate({
+          where: { unit: { type: 'PERTASHOP' }, soldAt: { gte: m.start, lte: m.end } },
+          _sum: { total: true },
+        }),
       ])
       return {
         label:       m.label,
@@ -96,6 +107,7 @@ export async function GET(req: NextRequest) {
         restoran:    Number(resto._sum.total ?? 0),
         penginapan:  Number(penginapan._sum.totalPrice ?? 0),
         homestay:    Number(homestay._sum.totalPrice ?? 0),
+        pertashop:   Number(pertashop._sum.total ?? 0),
       }
     })),
 
@@ -116,7 +128,8 @@ export async function GET(req: NextRequest) {
   const restoRev       = Number(restoranRevenue._sum.total ?? 0)
   const penginapanRev  = Number(penginapanRevenue._sum.totalPrice ?? 0)
   const homestayRev    = Number(homestayRevenue._sum.totalPrice ?? 0)
-  const grandTotal     = tokoRev + restoRev + penginapanRev + homestayRev
+  const pertashopRev   = Number(pertashopRevenue._sum.total ?? 0)
+  const grandTotal     = tokoRev + restoRev + penginapanRev + homestayRev + pertashopRev
 
   return NextResponse.json({
     month: format(now, 'MMMM yyyy'),
@@ -126,6 +139,7 @@ export async function GET(req: NextRequest) {
       { label: 'Restoran',     type: 'RESTAURANT',  revenue: restoRev,      count: Number(restoranRevenue._count.id),   icon: 'restaurant' },
       { label: 'Penginapan',   type: 'LODGING',     revenue: penginapanRev, count: Number(penginapanRevenue._count.id), icon: 'lodging' },
       { label: 'Homestay',     type: 'HOMESTAY',    revenue: homestayRev,   count: Number(homestayRevenue._count.id),   icon: 'homestay' },
+      { label: 'Pertashop',    type: 'PERTASHOP',   revenue: pertashopRev,  count: Number(pertashopRevenue._count.id),  icon: 'fuel' },
     ],
     b2b: { revenue: Number(b2bRevenue._sum.total ?? 0), count: Number(b2bRevenue._count.id) },
     employeeCount,

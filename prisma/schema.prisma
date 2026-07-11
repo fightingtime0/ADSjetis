@@ -21,6 +21,7 @@ enum UnitType {
   HOMESTAY
   RESTAURANT
   LODGING
+  PERTASHOP
 }
 
 enum Role {
@@ -105,6 +106,18 @@ enum PricingDayType {
   HOLIDAY // tanggal merah / peak season
 }
 
+enum FuelReadingType {
+  OPENING // pengukuran stok saat buka pagi
+  CLOSING // pengukuran stok saat tutup sore/malam
+}
+
+enum GroupOrderStatus {
+  PENDING // baru masuk, belum dikonfirmasi
+  CONFIRMED // sudah DP / dikonfirmasi
+  COMPLETED // acara selesai, lunas
+  CANCELLED
+}
+
 // ============================================================
 // AUTH & USER
 // ============================================================
@@ -156,6 +169,13 @@ model BusinessUnit {
   tableOrders    TableOrder[]
   employees      Employee[]      @relation("PrimaryUnit")
   shifts         Shift[]
+
+  fuelProducts        FuelProduct[]
+  fuelPurchases       FuelPurchase[]
+  fuelSales           FuelSale[]
+  fuelStockReadings   FuelStockReading[]
+  fuelReconciliations FuelReconciliation[]
+  groupOrders         GroupOrder[]
 
   @@map("business_units")
 }
@@ -587,6 +607,7 @@ model TableOrder {
   tax           Decimal          @default(0) @db.Decimal(14, 2)
   total         Decimal          @default(0) @db.Decimal(14, 2)
   paymentMethod PaymentMethod?
+  source        String           @default("KASIR") // KASIR | QR (order via scan QR meja)
   note          String?
   openedAt      DateTime         @default(now())
   billedAt      DateTime?
@@ -618,6 +639,148 @@ model TableOrderItem {
   menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
 
   @@map("table_order_items")
+}
+
+// ============================================================
+// PERTASHOP — BBM ECERAN
+// ============================================================
+
+// Produk BBM (Pertamax, Pertalite, dll) dengan stok liter berjalan
+model FuelProduct {
+  id        String   @id @default(cuid())
+  name      String // Pertamax, Pertalite, Dexlite, dll
+  buyPrice  Decimal  @db.Decimal(12, 2) // harga beli per liter (terakhir)
+  sellPrice Decimal  @db.Decimal(12, 2) // harga jual per liter
+  stock     Decimal  @default(0) @db.Decimal(12, 3) // stok liter berjalan (sistem)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  unitId String
+  unit   BusinessUnit @relation(fields: [unitId], references: [id])
+
+  purchases     FuelPurchase[]
+  sales         FuelSale[]
+  stockReadings FuelStockReading[]
+
+  @@map("fuel_products")
+}
+
+// Belanja BBM (liter & harga beli) → stok bertambah
+model FuelPurchase {
+  id             String   @id @default(cuid())
+  purchaseNumber String   @unique
+  liters         Decimal  @db.Decimal(12, 3)
+  buyPrice       Decimal  @db.Decimal(12, 2) // per liter
+  total          Decimal  @db.Decimal(14, 2) // liters * buyPrice
+  note           String?
+  purchasedAt    DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  fuelProductId String
+  fuelProduct   FuelProduct @relation(fields: [fuelProductId], references: [id])
+
+  unitId String
+  unit   BusinessUnit @relation(fields: [unitId], references: [id])
+
+  @@index([unitId, purchasedAt])
+  @@map("fuel_purchases")
+}
+
+// Penjualan BBM (liter & harga jual) → stok berkurang
+// buyPrice di-snapshot agar margin historis tidak berubah saat harga beli naik
+model FuelSale {
+  id         String   @id @default(cuid())
+  saleNumber String   @unique
+  liters     Decimal  @db.Decimal(12, 3)
+  sellPrice  Decimal  @db.Decimal(12, 2) // per liter
+  buyPrice   Decimal  @db.Decimal(12, 2) // snapshot harga beli saat jual
+  total      Decimal  @db.Decimal(14, 2) // liters * sellPrice
+  margin     Decimal  @db.Decimal(14, 2) // liters * (sellPrice - buyPrice)
+  note       String?
+  soldAt     DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  fuelProductId String
+  fuelProduct   FuelProduct @relation(fields: [fuelProductId], references: [id])
+
+  unitId String
+  unit   BusinessUnit @relation(fields: [unitId], references: [id])
+
+  @@index([unitId, soldAt])
+  @@map("fuel_sales")
+}
+
+// Pengukuran stok tangki untuk deteksi loss (penguapan/susut)
+// OPENING: expected = actual CLOSING hari sebelumnya → loss = penguapan malam
+// CLOSING: expected = actual OPENING + belanja − sales hari itu → loss = penguapan siang
+model FuelStockReading {
+  id             String          @id @default(cuid())
+  type           FuelReadingType
+  date           DateTime        @db.Date
+  expectedLiters Decimal         @db.Decimal(12, 3) // stok seharusnya menurut sistem
+  actualLiters   Decimal         @db.Decimal(12, 3) // hasil ukur tangki
+  lossLiters     Decimal         @db.Decimal(12, 3) // expected − actual
+  note           String?
+  createdAt      DateTime        @default(now())
+
+  fuelProductId String
+  fuelProduct   FuelProduct @relation(fields: [fuelProductId], references: [id])
+
+  unitId String
+  unit   BusinessUnit @relation(fields: [unitId], references: [id])
+
+  @@unique([fuelProductId, date, type])
+  @@index([unitId, date])
+  @@map("fuel_stock_readings")
+}
+
+// Rekonsiliasi harian: setoran uang vs total laporan hasil jualan
+model FuelReconciliation {
+  id            String   @id @default(cuid())
+  date          DateTime @db.Date
+  reportedSales Decimal  @db.Decimal(14, 2) // total FuelSale hari itu
+  depositAmount Decimal  @db.Decimal(14, 2) // setoran uang aktual
+  difference    Decimal  @db.Decimal(14, 2) // depositAmount − reportedSales
+  note          String?
+  createdAt     DateTime @default(now())
+
+  unitId String
+  unit   BusinessUnit @relation(fields: [unitId], references: [id])
+
+  @@unique([unitId, date])
+  @@map("fuel_reconciliations")
+}
+
+// ============================================================
+// RESTORAN — PESAN ROMBONGAN
+// ============================================================
+
+// Pesanan rombongan/grup (jumlah pax, jenis menu, custom menu)
+model GroupOrder {
+  id            String           @id @default(cuid())
+  orderCode     String           @unique
+  customerName  String
+  customerPhone String?
+  eventDate     DateTime // tanggal & jam acara
+  pax           Int // jumlah orang
+  menuType      String // "Paket A", "Prasmanan", dll
+  customMenu    String? // permintaan menu custom / catatan menu
+  pricePerPax   Decimal          @db.Decimal(12, 2)
+  totalPrice    Decimal          @db.Decimal(14, 2) // pax * pricePerPax
+  dpAmount      Decimal          @default(0) @db.Decimal(14, 2)
+  paidAmount    Decimal          @default(0) @db.Decimal(14, 2)
+  status        GroupOrderStatus @default(PENDING)
+  note          String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  unitId String
+  unit   BusinessUnit @relation(fields: [unitId], references: [id])
+
+  @@index([unitId, eventDate])
+  @@index([status])
+  @@map("group_orders")
 }
 
 // ============================================================
