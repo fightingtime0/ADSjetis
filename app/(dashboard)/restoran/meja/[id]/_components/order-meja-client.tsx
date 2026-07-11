@@ -3,6 +3,7 @@
 import { useState, useOptimistic, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatRupiah, formatDateTime } from '@/lib/utils'
+import { Receipt, printReceipt, type ReceiptData } from '@/components/receipt'
 
 type MenuItem = { id: string; name: string; price: number; taxRate: number; category: { id: string; name: string } | null }
 type Category = { id: string; name: string }
@@ -36,6 +37,8 @@ type Props = {
   menuItems: MenuItem[]
   categories: Category[]
   taxRate: number
+  unitName: string
+  unitLocation: string | null
 }
 
 const ITEM_STATUS_STYLE: Record<string, string> = {
@@ -58,7 +61,7 @@ const PAYMENT_METHODS = [
   { value: 'CARD', label: 'Kartu' },
 ]
 
-export function OrderMejaClient({ order: initialOrder, menuItems, categories, taxRate }: Props) {
+export function OrderMejaClient({ order: initialOrder, menuItems, categories, taxRate, unitName, unitLocation }: Props) {
   const router = useRouter()
   const [, startTransition] = useTransition()
   const [order, setOrder] = useState(initialOrder)
@@ -71,6 +74,7 @@ export function OrderMejaClient({ order: initialOrder, menuItems, categories, ta
   const [discount, setDiscount] = useState(0)
   const [paying, setPaying] = useState(false)
   const [payError, setPayError] = useState('')
+  const [paidReceipt, setPaidReceipt] = useState<ReceiptData | null>(null)
   // Mobile: toggle antara panel Menu dan panel Order
   const [activeTab, setActiveTab] = useState<'menu' | 'order'>('menu')
 
@@ -145,11 +149,34 @@ export function OrderMejaClient({ order: initialOrder, menuItems, categories, ta
       const data = await res.json()
       if (!res.ok) { setPayError(data.error ?? 'Gagal melakukan pembayaran'); return }
       setShowPayModal(false)
-      router.push('/restoran')
-      router.refresh()
+      // Tampilkan modal sukses + opsi cetak struk sebelum kembali ke daftar meja
+      setPaidReceipt({
+        storeName: unitName,
+        storeLocation: unitLocation,
+        invoiceNumber: order.orderNumber,
+        dateTime: data.paidAt ?? new Date(),
+        items: activeItems.map((i) => ({
+          name: i.menuItem.name,
+          qty: i.qty,
+          price: i.price,
+          subtotal: i.subtotal,
+        })),
+        subtotal,
+        discount,
+        tax,
+        total,
+        paymentMethod: payMethod,
+        footerNote: `Meja ${order.tableNumber} — Terima kasih`,
+      })
     } finally {
       setPaying(false)
     }
+  }
+
+  function finishAfterPay() {
+    setPaidReceipt(null)
+    router.push('/restoran')
+    router.refresh()
   }
 
   return (
@@ -428,6 +455,43 @@ export function OrderMejaClient({ order: initialOrder, menuItems, categories, ta
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Modal sukses bayar + cetak struk */}
+      {paidReceipt && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="p-6 text-center border-b border-gray-100">
+              <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <svg className="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Pembayaran Berhasil!</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Meja {order.tableNumber} · {paidReceipt.invoiceNumber}
+              </p>
+              <p className="text-2xl font-bold text-gray-900 mt-2">{formatRupiah(paidReceipt.total)}</p>
+            </div>
+            <div className="px-5 py-5 flex gap-3">
+              <button
+                onClick={printReceipt}
+                className="flex-1 py-2.5 border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold rounded-lg text-sm transition-colors"
+              >
+                🖨 Cetak Struk
+              </button>
+              <button
+                onClick={finishAfterPay}
+                className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg text-sm transition-colors"
+              >
+                Selesai
+              </button>
+            </div>
+          </div>
+
+          {/* Struk print (hanya muncul saat cetak) */}
+          <Receipt data={paidReceipt} />
         </div>
       )}
     </>

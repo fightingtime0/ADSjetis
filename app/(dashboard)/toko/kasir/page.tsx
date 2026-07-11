@@ -33,6 +33,8 @@ export default async function KasirPage() {
       products={serialized}
       categories={categories}
       taxRate={Number(unit.taxRate)}
+      unitName={unit.name}
+      unitLocation={unit.location}
     />
   )
 }

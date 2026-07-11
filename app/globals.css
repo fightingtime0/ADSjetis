@@ -7,3 +7,26 @@
     @apply bg-gray-50 text-gray-900 antialiased;
   }
 }
+
+/* ── Struk thermal (58mm) ─────────────────────────────────────
+   Aktif hanya saat printReceipt() menambah class .printing-receipt
+   ke <body>, sehingga print halaman lain (mis. QR meja) tidak
+   terpengaruh. */
+@media print {
+  body.printing-receipt * {
+    visibility: hidden;
+  }
+  body.printing-receipt .print-receipt,
+  body.printing-receipt .print-receipt * {
+    visibility: visible;
+  }
+  body.printing-receipt .print-receipt {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 58mm;
+    padding: 2mm;
+    background: #fff;
+  }
+}

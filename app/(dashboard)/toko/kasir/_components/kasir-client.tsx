@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { formatRupiah } from '@/lib/utils'
+import { Receipt, printReceipt } from '@/components/receipt'
 
 type Product = {
   id: string
@@ -25,6 +26,8 @@ type Props = {
   products: Product[]
   categories: Category[]
   taxRate: number
+  unitName: string
+  unitLocation: string | null
 }
 
 const PAYMENT_METHODS = [
@@ -34,7 +37,7 @@ const PAYMENT_METHODS = [
   { value: 'CARD',     label: 'Kartu' },
 ]
 
-export function KasirClient({ products, categories, taxRate }: Props) {
+export function KasirClient({ products, categories, taxRate, unitName, unitLocation }: Props) {
   const [cart, setCart] = useState<CartItem[]>([])
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState('')
@@ -52,6 +55,22 @@ export function KasirClient({ products, categories, taxRate }: Props) {
     const matchCat = !filterCat || p.category?.id === filterCat
     return matchSearch && matchCat && p.stock > 0
   })
+
+  // Barcode scanner USB bekerja sebagai keyboard: mengetik SKU lalu Enter.
+  // Enter di kolom cari → SKU persis cocok (atau hasil filter tinggal satu) langsung masuk keranjang.
+  function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== 'Enter' || !search.trim()) return
+    e.preventDefault()
+
+    const term = search.trim().toLowerCase()
+    const bySku = products.find((p) => (p.sku ?? '').toLowerCase() === term && p.stock > 0)
+    const target = bySku ?? (filteredProducts.length === 1 ? filteredProducts[0] : null)
+
+    if (target) {
+      addToCart(target)
+      setSearch('')
+    }
+  }
 
   function addToCart(product: Product) {
     setCart((prev) => {
@@ -152,9 +171,10 @@ export function KasirClient({ products, categories, taxRate }: Props) {
           <input
             ref={searchRef}
             type="text"
-            placeholder="Cari produk / SKU... (Ctrl+F)"
+            placeholder="Cari / scan barcode SKU lalu Enter..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
             className="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <select
@@ -416,6 +436,12 @@ export function KasirClient({ products, categories, taxRate }: Props) {
 
             <div className="px-5 pb-5 flex gap-3">
               <button
+                onClick={printReceipt}
+                className="flex-1 py-2.5 border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold rounded-lg text-sm transition-colors"
+              >
+                🖨 Cetak Struk
+              </button>
+              <button
                 onClick={closeReceipt}
                 className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-sm transition-colors"
               >
@@ -423,6 +449,29 @@ export function KasirClient({ products, categories, taxRate }: Props) {
               </button>
             </div>
           </div>
+
+          {/* Struk print (hanya muncul saat cetak) */}
+          <Receipt
+            data={{
+              storeName: unitName,
+              storeLocation: unitLocation,
+              invoiceNumber: receipt.invoiceNumber,
+              dateTime: receipt.createdAt ?? new Date(),
+              items: (receipt.items ?? []).map((item: any) => ({
+                name: item.product.name,
+                qty: Number(item.qty),
+                price: Number(item.price),
+                subtotal: Number(item.subtotal),
+              })),
+              subtotal: Number(receipt.subtotal),
+              discount: Number(receipt.discount),
+              tax: Number(receipt.tax),
+              total: Number(receipt.total),
+              paymentMethod: receipt.paymentMethod,
+              paidAmount: Number(receipt.paidAmount),
+              change: Number(receipt.change),
+            }}
+          />
         </div>
       )}
     </div>

@@ -21,7 +21,7 @@ export default async function OrderMejaPage({ params }: { params: Promise<{ id: 
 
   const unit = await prisma.businessUnit.findUnique({
     where: { id: order.unitId },
-    select: { taxRate: true },
+    select: { name: true, location: true, taxRate: true },
   })
 
   const menuItems = await prisma.menuItem.findMany({
@@ -58,6 +58,8 @@ export default async function OrderMejaPage({ params }: { params: Promise<{ id: 
       }))}
       categories={categories}
       taxRate={Number(unit?.taxRate ?? 0)}
+      unitName={unit?.name ?? 'Restoran'}
+      unitLocation={unit?.location ?? null}
     />
   )
 }
